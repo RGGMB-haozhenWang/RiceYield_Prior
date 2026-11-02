@@ -1,0 +1,4 @@
+gene_id,symbol,phenotype
+DEMO_G1,DEMO1,"每穗粒数(TO:0002759), 分蘖数(TO:0000346)"
+DEMO_G2,DEMO2,"千粒重(TO:0000382), 粒宽(TO:0000975)"
+DEMO_G3,DEMO3,Example trait without a matching TO code

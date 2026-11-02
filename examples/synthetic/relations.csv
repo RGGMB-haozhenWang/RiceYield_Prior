@@ -1,0 +1,2 @@
+relation_id,left_event,right_event,relation,source_id,source_locator,review_state,notes
+R1,E2,E1,component_of,SRC1,synthetic Figure 4,reviewed,Component is not equivalent to the whole haplotype

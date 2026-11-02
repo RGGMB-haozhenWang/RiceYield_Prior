@@ -1,0 +1,43 @@
+﻿component,component_cn,relationship,trait_ontology_id,expected_trait_label,interpretation
+effective_panicles,有效穗数,direct,TO:0000152,单株穗数,closest RiceData measurement to effective panicle number
+effective_panicles,有效穗数,direct,TO:0000443,穗数,panicle count; productive status is not recorded
+effective_panicles,有效穗数,direct,TO:0000582,穗数,panicle count; productive status is not recorded
+effective_panicles,有效穗数,proxy,TO:0000346,分蘖数,tiller count includes non-productive tillers
+grains_per_panicle,每穗粒数,direct,TO:0002759,每穗粒数,direct component measurement
+grains_per_panicle,每穗粒数,direct,TO:0000447,每穗实粒数,filled-grain component measurement
+grains_per_panicle,每穗粒数,direct,TO:0000445,每穗种子数,direct component measurement
+grains_per_panicle,每穗粒数,proxy,TO:0000456,每穗颖花数,potential grain number before fertility losses
+grains_per_panicle,每穗粒数,proxy,TO:0002736,颖花数,potential grain number before fertility losses
+grains_per_panicle,每穗粒数,proxy,TO:0002738,小花数,potential grain number before fertility losses
+grains_per_panicle,每穗粒数,proxy,TO:0006038,颖花数,potential grain number before fertility losses
+grains_per_panicle,每穗粒数,proxy,TO:0006033,小花数,potential grain number before fertility losses
+grains_per_panicle,每穗粒数,proxy,TO:0000448,结实率,fertility proxy; not a grain-count measurement
+grains_per_panicle,每穗粒数,proxy,TO:0000180,小穗育性,fertility proxy; not a grain-count measurement
+grains_per_panicle,每穗粒数,proxy,TO:0000436,花粉育性,fertility proxy; not a grain-count measurement
+grains_per_panicle,每穗粒数,proxy,TO:0000547,一次枝梗数,panicle architecture proxy
+grains_per_panicle,每穗粒数,proxy,TO:0000557,二次枝梗数,panicle architecture proxy
+grains_per_panicle,每穗粒数,proxy,TO:0000625,穗分枝,panicle architecture proxy
+grains_per_panicle,每穗粒数,proxy,TO:0000040,穗长,panicle architecture proxy
+grains_per_panicle,每穗粒数,proxy,TO:0020001,穗密度,panicle architecture proxy
+grains_per_panicle,每穗粒数,proxy,TO:0000028,每穗瘪粒数,unfilled-grain proxy; direction requires interpretation
+grains_per_panicle,每穗粒数,proxy,TO:0000440,单株粒数,"plant-level grain count, not per-panicle"
+thousand_grain_weight,千粒重,direct,TO:0000382,千粒重,direct component measurement
+thousand_grain_weight,千粒重,direct,TO:0000592,千粒脱壳谷粒重,direct dehulled-grain component measurement
+thousand_grain_weight,千粒重,proxy,TO:0000591,百粒重,convertible only when units and moisture basis are known
+thousand_grain_weight,千粒重,proxy,TO:0002747,百粒重,convertible only when units and moisture basis are known
+thousand_grain_weight,千粒重,proxy,TO:0000589,十粒重,convertible only when units and moisture basis are known
+thousand_grain_weight,千粒重,proxy,TO:0000919,粒重,weight proxy with unspecified grain count
+thousand_grain_weight,千粒重,proxy,TO:0000181,种子重量,weight proxy with unspecified grain count
+thousand_grain_weight,千粒重,proxy,TO:0000590,脱壳谷粒重,single-grain weight proxy
+thousand_grain_weight,千粒重,proxy,TO:0000397,籽粒大小,"size proxy, not a weight measurement"
+thousand_grain_weight,千粒重,proxy,TO:0000391,种子大小,"size proxy, not a weight measurement"
+thousand_grain_weight,千粒重,proxy,TO:0000734,粒长,dimension proxy
+thousand_grain_weight,千粒重,proxy,TO:0002761,谷粒长,dimension proxy
+thousand_grain_weight,千粒重,proxy,TO:0000975,粒宽,dimension proxy
+thousand_grain_weight,千粒重,proxy,TO:0002762,谷粒宽,dimension proxy
+thousand_grain_weight,千粒重,proxy,TO:0000402,脱壳谷粒宽,dimension proxy
+thousand_grain_weight,千粒重,proxy,TO:0000399,粒厚,dimension proxy
+thousand_grain_weight,千粒重,proxy,TO:0000304,种子厚度,dimension proxy
+thousand_grain_weight,千粒重,proxy,TO:0000411,籽粒长宽比,shape proxy
+thousand_grain_weight,千粒重,proxy,TO:0002730,粒形,shape proxy
+thousand_grain_weight,千粒重,proxy,TO:1002661,灌浆,grain-filling proxy; not a weight measurement

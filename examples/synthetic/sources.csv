@@ -1,0 +1,4 @@
+source_id,doi,title,source_version,asset_sha256,availability,scope
+SRC1,10.0000/demo-not-a-real-doi,Fictional paper one,example-v1,,synthetic,eligible
+SRC2,https://doi.org/10.0000/DEMO-NOT-A-REAL-DOI,Fictional second record for duplicate demonstration,example-v1,,synthetic,unresolved
+SRC3,,Fictional excluded source,example-v1,,synthetic,excluded

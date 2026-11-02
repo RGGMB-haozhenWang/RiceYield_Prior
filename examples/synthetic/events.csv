@@ -1,0 +1,5 @@
+event_id,gene_id,origin,kind,description,assembly,chromosome,position,ref,alt
+E1,DEMO_G1,natural,haplotype,Synthetic haplotype; identity at component level unresolved,,,,,
+E2,DEMO_G1,natural,snp,Synthetic component; no coordinates asserted,,,,,
+E3,DEMO_G2,engineered,indel,Synthetic engineered perturbation,,,,,
+E4,DEMO_G2,unknown,other,Synthetic unclassified event,,,,,

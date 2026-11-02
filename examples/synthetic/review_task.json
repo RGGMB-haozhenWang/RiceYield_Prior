@@ -1,0 +1,8 @@
+{
+  "source_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "gene_or_event": "DEMO_G1/E1",
+  "endpoint": "grain yield",
+  "comparison": "A versus B",
+  "missing_fields": "source figure",
+  "adjudication_version": "example-v1"
+}

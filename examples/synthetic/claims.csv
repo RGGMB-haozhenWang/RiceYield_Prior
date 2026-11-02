@@ -1,0 +1,8 @@
+claim_id,source_id,gene_id,event_id,trait,causal_unit,comparison,material,environment,effect,unit,source_locator,evidence_level,review_state,independent_review,notes
+C1,SRC1,DEMO_G1,E1,grain number,,haplotype A versus B,fictional lines,fictional environment,higher,,synthetic Figure 1,allele_supported,reviewed,not_performed,Demo only; not a real biological result
+C2,SRC1,DEMO_G2,,plant height,,mutant versus control,fictional lines,fictional environment,no difference reported,,synthetic Figure 2,gene_functional,reviewed,not_performed,No difference reported is not evidence of equivalence
+C3,SRC1,DEMO_G2,E3,expression,,engineered perturbation versus control,fictional lines,fictional assay,lower,,synthetic Figure 3,molecular_functional,reviewed,pass,Status is synthetic; no actual review
+C4,SRC2,DEMO_G2,E4,grain yield,,unknown,,,,,,unresolved,pending,pending,Missing identity and original figure
+C5,SRC3,DEMO_G1,E2,grain length,,unknown,,,,,synthetic table,association_only,excluded,not_performed,Retained as excluded history
+C6,SRC1,DEMO_G1,E2,grain length,,association groups,fictional population,fictional environment,association,,synthetic Table 1,association_only,reviewed,not_performed,Association is not causal proof
+C7,SRC1,DEMO_G1,E1,grain yield,haplotype,haplotype A versus B,fictional lines,fictional field,higher,,synthetic Table 2,event_causal,reviewed,pass,Entirely fictional; causality applies to the haplotype only
