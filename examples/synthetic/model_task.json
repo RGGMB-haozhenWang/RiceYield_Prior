@@ -1,0 +1,23 @@
+{
+  "task_id": "synthetic_demo",
+  "question": "Report the fictional comparison without inferring an unseen figure.",
+  "model": {
+    "name": "example-model:1b",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "source": {
+    "sha256": "40e5f7f5d5e1a0c7baa1f2f3ba31d17a9ed5301eed84bc934081fa4699160ff8",
+    "scope": "eligible",
+    "identity_status": "verified",
+    "access_status": "allowed",
+    "held_asset_verified": true
+  },
+  "evidence_sha256": "6e39f4fbfe0f58b62ac4c2acf3eee88682c62c8e6279a4cf34f0e8ae16a9e04d",
+  "endpoint": "http://127.0.0.1:11434",
+  "limits": {
+    "context_tokens": 4096,
+    "output_tokens": 256,
+    "timeout_seconds": 30,
+    "threads": 1
+  }
+}

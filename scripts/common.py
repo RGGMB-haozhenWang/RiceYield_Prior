@@ -6,6 +6,19 @@ import os
 from pathlib import Path
 
 
+def strict_json(text):
+    def object_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError('Duplicate JSON key: ' + key)
+            result[key] = value
+        return result
+    def reject_constant(value):
+        raise ValueError('Non-finite JSON value: ' + value)
+    return json.loads(text, object_pairs_hook=object_pairs, parse_constant=reject_constant)
+
+
 def digest(path):
     path = Path(path)
     if getattr(path.stat(), 'st_flags', 0) & 0x40000000:

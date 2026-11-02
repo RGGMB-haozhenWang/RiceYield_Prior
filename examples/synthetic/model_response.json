@@ -1,0 +1,7 @@
+{
+  "done": true,
+  "done_reason": "stop",
+  "message": {
+    "content": "{\"gene\": \"DEMO1\", \"observations\": [{\"trait\": \"grain weight\", \"finding\": \"Hap2 had higher grain weight\", \"comparison\": \"Hap2 versus Hap1\", \"anchor\": \"xml-1\", \"quote\": \"Box plots for Hap1 and Hap2\"}]}"
+  }
+}

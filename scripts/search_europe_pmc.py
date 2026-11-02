@@ -3,6 +3,7 @@
 import argparse
 import json
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -12,6 +13,10 @@ from common import atomic_bytes, digest, write_json
 
 BASE = 'https://www.ebi.ac.uk/europepmc/webservices/rest/search'
 MAX_BYTES = 20_000_000
+
+
+class AccessStop(ValueError):
+    pass
 
 
 def result_records(body):
@@ -44,6 +49,9 @@ def run(query, output, max_pages=1, page_size=100):
                 raw = response.read(MAX_BYTES + 1)
             if len(raw) > MAX_BYTES:
                 raise ValueError('response exceeds 20 MB; no truncated page accepted')
+            head = raw[:4096].lower()
+            if (head.lstrip().startswith(b'<html') or head.lstrip().startswith(b'<!doctype html')) and any(marker in head for marker in (b'captcha', b'cloudflare', b'verify you are human', b'access denied')):
+                raise AccessStop('Human verification or access restriction detected')
             body = json.loads(raw)
             records = result_records(body)
             dest = output / f'page_{page + 1:03}.json'
@@ -65,6 +73,16 @@ def run(query, output, max_pages=1, page_size=100):
         receipt['next_cursor'] = cursor
         write_json(output / 'manifest.json', receipt)
         return receipt
+    except urllib.error.HTTPError as exc:
+        receipt.update(status='access_stop' if exc.code in (401, 403, 429) else 'failed',
+                       error_type='HTTPError', http_status=exc.code)
+        write_json(output / 'manifest.json', receipt)
+        exc.close()
+        raise
+    except AccessStop as exc:
+        receipt.update(status='access_stop', error_type='AccessStop', error=str(exc))
+        write_json(output / 'manifest.json', receipt)
+        raise
     except Exception as exc:
         receipt.update(status='failed', error_type=type(exc).__name__, error=str(exc))
         write_json(output / 'manifest.json', receipt)
