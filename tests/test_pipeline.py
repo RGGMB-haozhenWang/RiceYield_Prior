@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
 import build_prior
 import claim_task_key
+import literature_links
 import query_prior
 import prepare_sources
 import screen_candidates
@@ -115,6 +116,21 @@ class PipelineTest(unittest.TestCase):
         self.assertNotEqual(key, claim_task_key.identity_key({**identity, 'endpoint': 'another endpoint'}))
         with self.assertRaises(ValueError):
             claim_task_key.identity_key({**identity, 'source_sha256': 'no-hash'})
+
+    def test_literature_links_are_encoded_and_do_not_claim_availability(self):
+        from urllib.parse import parse_qs, unquote, urlsplit
+        result = literature_links.links('https://doi.org/10.1234/example%28a%29', '12345', 'pmc12345')
+        self.assertEqual(result['identifiers']['doi'], '10.1234/example(a)')
+        self.assertEqual(result['identifiers']['pmcid'], 'PMC12345')
+        self.assertTrue(all(link['availability'] == 'not_checked' for link in result['links']))
+        crossref = next(link['url'] for link in result['links'] if link['source'] == 'Crossref')
+        self.assertEqual(unquote(urlsplit(crossref).path), '/works/10.1234/example(a)')
+        pubmed = next(link['url'] for link in result['links'] if link['source'] == 'PubMed' and link['role'] == 'search')
+        self.assertEqual(parse_qs(urlsplit(pubmed).query)['term'], ['"10.1234/example(a)"[aid]'])
+        with self.assertRaises(ValueError): literature_links.links('https://example.org/10.1234/other')
+        with self.assertRaises(ValueError): literature_links.links('10.1234/x" OR all')
+        with self.assertRaises(ValueError): literature_links.links(pmcid='PMC1/../../')
+        with self.assertRaises(ValueError): literature_links.links()
 
     def test_metadata_intake_preserves_lineage_and_rejects_tampering(self):
         class Response:

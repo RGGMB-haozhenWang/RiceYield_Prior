@@ -6,6 +6,7 @@
 |---|---|
 | `config/trait_rules.csv`、`scripts/screen_candidates.py` | 保留早期 RiceData 三要素索引的 TO 规则和直接/代理定义；重新实现可传入 CSV 的筛选及未匹配记录台账 |
 | `scripts/search_europe_pmc.py`、`scripts/prepare_sources.py` | 依据现有 Europe PMC 发现流程改写为有页数上限、逐页哈希、来源行定位的独立入口；不包含全文获取及原有本地语料 |
+| `scripts/literature_links.py` | 为本分享版新增的离线导航工具；由使用者提供 DOI、PMID 或 PMCID，不自动取得全文或认证这些标识属于同一文献 |
 | `scripts/claim_task_key.py` | 从已有 QTN 待办键规则抽出六字段、规范 JSON 和 SHA-256 的算法，用于定位具体增量命题 |
 | `scripts/build_prior.py`、`scripts/query_prior.py` | 根据现有来源/基因/事件/比较/证据分层和只读查询原则编写简化分享版；并非内部数据库或发布脚本的直接复制 |
 

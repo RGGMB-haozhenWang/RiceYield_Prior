@@ -1,6 +1,14 @@
 # RiceYield Prior
 
-水稻产量相关基因、自然变异及功能证据的整理流程。这个仓库整理了现有研究流程中可独立分享的部分：候选召回、来源登记、逐命题审阅、事件与证据分层，以及可追溯的数据库导出。**代码不自动证明因果，也不包含真实的项目数据库。**
+## 项目简介
+
+RiceYield Prior 面向作物育种和遗传研究中分散的文献证据，整理水稻产量相关基因、自然变异和功能先验。项目将来源、基因、分子事件、材料与对照、性状效应及审阅状态连接起来，帮助研究团队追溯候选依据、识别背景差异和性状代价，并为后续群体分析与实验设计准备可核查的先验。
+
+本仓库提供可移植的候选筛选、来源登记、证据整理、校验与查询脚本，适合公司研发团队和科研同事了解方法、共享标准及在自有数据上试用。**代码不自动证明因果，也不包含真实的项目数据库。**
+
+*RiceYield Prior organizes literature-based evidence on rice yield genes, variants and traits into a traceable, reviewable workflow for research and breeding teams.*
+
+[完整项目介绍](docs/project_overview.md) · [公开文献与资源入口](docs/literature_sources.md)
 
 ## 工作流程
 
@@ -63,11 +71,21 @@ python3 scripts/prepare_sources.py \
 
 待审 `sources.csv` 默认全部为 `scope=unresolved`；需结合论文版本、撤稿信息、原文及当前研究范围逐条确认后，才能作为正式整理输入。`source_record_lineage.csv` 保留每个检索记录对应的页、行和哈希。`metadata_conflicts.csv` 单列同一来源记录的标题或 DOI 差异。接口说明见 [Europe PMC Articles RESTful API](https://dev.europepmc.org/RestfulWebService)。
 
+## 为一篇文献生成多来源链接
+
+已知 DOI、PMID 或 PMCID 时，可离线生成 DOI、Crossref、OpenAlex、PubMed、PMC 和 Europe PMC 的相应导航链接：
+
+```bash
+python3 scripts/literature_links.py --doi '10.0000/example'
+```
+
+上面的 DOI 仅作格式示例，不代表真实论文。也可使用 `--pmid` 和 `--pmcid`；多个标识符必须由使用者核实属于同一文献。生成链接不会联网检查文献是否存在、是否开放或是否允许再分发。来源选择和使用范围见 [公开文献与资源入口](docs/literature_sources.md)。
+
 ## 用自己的数据
 
 复制 [examples/synthetic](examples/synthetic/) 的五张结构化表为工作区模板，维护来源、基因、分子事件、逐命题证据及事件关系；字段与状态说明见 [输入契约](docs/input_contract.md)。样例 `annotations.csv` 是另一条候选筛选支路，不自动写入证据表。数据格式是本分享版的简化接口，**不能直接当作内部生产数据库 schema 或验收回执**。
 
-推荐的科学判断原则和版本管理见 [整理与复核方法](docs/curation_workflow.md)。项目来源及分享版与内部流程的差异见 [代码来源与范围](docs/provenance.md)。
+推荐的科学判断原则和版本管理见 [整理与复核方法](docs/curation_workflow.md)。其他文献与开放全文线索见 [公开文献与资源入口](docs/literature_sources.md)；项目来源及分享版与内部流程的差异见 [代码来源与范围](docs/provenance.md)。
 
 ## 发布边界
 
