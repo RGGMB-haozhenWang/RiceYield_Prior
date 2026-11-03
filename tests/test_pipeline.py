@@ -132,6 +132,33 @@ class PipelineTest(unittest.TestCase):
         with self.assertRaises(ValueError): literature_links.links(pmcid='PMC1/../../')
         with self.assertRaises(ValueError): literature_links.links()
 
+    def test_public_source_link_catalogue_and_identifiers(self):
+        from urllib.parse import parse_qs, urlsplit
+        result = literature_links.links(doi='10.1234/example', pmid='12345', pmcid='PMC12345')
+        by_route = {(link['source'], link['role']): link for link in result['links']}
+        expected = {
+            ('DOI resolver', 'publisher_or_source_landing_page'): 'doi.org',
+            ('Crossref', 'metadata_if_registered'): 'api.crossref.org',
+            ('OpenAlex', 'metadata_and_possible_open_access_locations'): 'api.openalex.org',
+            ('PubMed', 'search'): 'pubmed.ncbi.nlm.nih.gov',
+            ('PubMed', 'record'): 'pubmed.ncbi.nlm.nih.gov',
+            ('PubMed Central', 'possible_full_text'): 'pmc.ncbi.nlm.nih.gov',
+            ('Europe PMC', 'search'): 'europepmc.org',
+            ('Europe PMC', 'possible_full_text'): 'europepmc.org',
+        }
+        self.assertEqual(len(result['links']), len(expected))
+        self.assertEqual(set(by_route), set(expected))
+        for route, host in expected.items():
+            with self.subTest(route=route):
+                parsed = urlsplit(by_route[route]['url'])
+                self.assertEqual((parsed.scheme, parsed.hostname), ('https', host))
+                self.assertEqual(by_route[route]['availability'], 'not_checked')
+        self.assertEqual(urlsplit(by_route['PubMed', 'record']['url']).path, '/12345/')
+        self.assertEqual(urlsplit(by_route['PubMed Central', 'possible_full_text']['url']).path,
+                         '/articles/PMC12345/')
+        self.assertEqual(parse_qs(urlsplit(by_route['Europe PMC', 'search']['url']).query)['query'],
+                         ['DOI:"10.1234/example"'])
+
     def test_metadata_intake_preserves_lineage_and_rejects_tampering(self):
         class Response:
             def __enter__(self): return self
