@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
-from common import digest, strict_json, write_json
+from common import NoRedirect, copy_bounded, digest, strict_json, write_json
 from literature_links import normalize_doi
 
 MAX_BYTES = 15_000_000
@@ -64,11 +64,6 @@ def validate_jats(raw, doi, pmcid):
             'sha256': hashlib.sha256(raw).hexdigest(), 'identity_scope': 'article-meta IDs and body only'}
 
 
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
-
-
 def acquire(source_path, output):
     source_path, output = Path(source_path), Path(output)
     output.mkdir(parents=True, exist_ok=False)
@@ -112,17 +107,7 @@ def acquire(source_path, output):
                 receipt['http_status'] = status
                 if status != 200:
                     raise urllib.error.HTTPError(req.full_url, status, 'HTTP request failed', {}, None)
-                received = 0
-                while True:
-                    chunk = response.read(min(128 * 1024, MAX_BYTES - received + 1))
-                    if not chunk:
-                        break
-                    stream.write(chunk)
-                    received += len(chunk)
-                    if received > MAX_BYTES:
-                        raise ValueError('response_over_limit')
-                stream.flush()
-                os.fsync(stream.fileno())
+                copy_bounded(response, stream, MAX_BYTES, 'response_over_limit')
             raw = partial.read_bytes()
             sample = raw[:4096].lower().lstrip()
             if (sample.startswith(b'<html') or sample.startswith(b'<!doctype html')) and any(
@@ -144,7 +129,8 @@ def acquire(source_path, output):
     except urllib.error.HTTPError as exc:
         receipt.update(status='access_stop' if exc.code in (401, 403, 429) else 'redirect_requires_review' if 300 <= exc.code < 400 else 'transport_failed',
                        http_status=exc.code, error_type='HTTPError')
-        exc.close()
+        if exc.fp is not None:
+            exc.close()
     except (OSError, TimeoutError) as exc:
         receipt.update(status='transport_failed' if receipt['attempts'] else 'invalid_source',
                        error_type=type(exc).__name__, error=str(exc))

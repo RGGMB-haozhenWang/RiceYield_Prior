@@ -73,6 +73,8 @@ python3 scripts/validate_review.py \
 
 保存运行目录、任务和输入路径、各项 SHA-256、模型摘要、覆盖范围、状态、风险与精确下一步。回执与输入之间的哈希没有签名；其预期哈希应在另一个可信清单中记录。复用前核验哈希和当前代码：
 
+回执绑定生成时的代码哈希和输入绝对路径。迁移到服务器后，保留回执中记录的输入路径，或在原环境复验；旧回执使用对应提交的代码核验。代码更新后产生的新运行使用新目录并重新登记哈希。
+
 ```bash
 python3 scripts/verify_review.py --receipt runs/review_001/review_receipt.json --sha256 '<已记录的回执SHA256>'
 python3 scripts/verify_local_run.py --receipt runs/model_attempt_001/run_receipt.json --sha256 '<已记录的回执SHA256>'

@@ -14,7 +14,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from common import digest, strict_json, write_json
+from common import NoRedirect, copy_bounded, digest, strict_json, write_json
 from validate_review import run as validate_run
 from verify_local_run import verify as verify_previous_run
 
@@ -24,11 +24,6 @@ MAX_RESPONSE_BYTES = 4_000_000
 
 class ModelIdentityError(ValueError):
     pass
-
-
-class NoRedirect(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
 
 
 def endpoint(value):
@@ -184,17 +179,7 @@ def run(task_path, evidence_path, asset_path, output):
         receipt['attempts'] = 1
         partial = output / 'response.raw.partial'
         with opener.open(request, timeout=limits['timeout_seconds']) as response, partial.open('xb') as stream:
-            received = 0
-            while True:
-                chunk = response.read(min(128 * 1024, MAX_RESPONSE_BYTES - received + 1))
-                if not chunk:
-                    break
-                stream.write(chunk)
-                received += len(chunk)
-                if received > MAX_RESPONSE_BYTES:
-                    raise ValueError('model_response_over_size_limit')
-            stream.flush()
-            os.fsync(stream.fileno())
+            copy_bounded(response, stream, MAX_RESPONSE_BYTES, 'model_response_over_size_limit')
         os.replace(partial, output / 'response.raw')
         receipt['response_sha256'] = digest(output / 'response.raw')
         strict_json((output / 'response.raw').read_text(encoding='utf-8'))
@@ -214,7 +199,8 @@ def run(task_path, evidence_path, asset_path, output):
         receipt.update(status='model_identity_mismatch', error_type=type(exc).__name__, error=str(exc))
     except urllib.error.HTTPError as exc:
         receipt.update(status='model_service_failed', http_status=exc.code, error_type='HTTPError')
-        exc.close()
+        if exc.fp is not None:
+            exc.close()
     except (OSError, TimeoutError) as exc:
         receipt.update(status='invalid_task' if stage == 'preflight' else 'model_service_failed',
                        error_type=type(exc).__name__, error=str(exc))

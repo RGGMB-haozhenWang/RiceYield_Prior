@@ -3,6 +3,7 @@ import csv
 import hashlib
 import json
 import os
+import urllib.request
 from pathlib import Path
 
 
@@ -28,6 +29,25 @@ def digest(path):
         for block in iter(lambda: stream.read(1024 * 1024), b''):
             h.update(block)
     return h.hexdigest()
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def copy_bounded(response, stream, limit, error):
+    received = 0
+    while True:
+        chunk = response.read(min(128 * 1024, limit - received + 1))
+        if not chunk:
+            break
+        stream.write(chunk)
+        received += len(chunk)
+        if received > limit:
+            raise ValueError(error)
+    stream.flush()
+    os.fsync(stream.fileno())
 
 
 def read_csv(path, columns):

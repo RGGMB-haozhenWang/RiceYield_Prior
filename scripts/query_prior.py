@@ -41,7 +41,7 @@ def main():
     parser.add_argument('--limit', type=int, default=10)
     parser.add_argument('--offset', type=int, default=0)
     args = parser.parse_args()
-    print(json.dumps(query(args.db, args.gene, args.limit, args.offset), ensure_ascii=False, indent=2))
+    print(json.dumps(query(args.db, args.gene, args.limit, args.offset), indent=2))
 
 
 if __name__ == '__main__':

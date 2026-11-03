@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest.mock import patch
 
@@ -47,6 +48,19 @@ def answer(reason='stop'):
 
 
 class LocalModelReviewTest(unittest.TestCase):
+    def test_http_failure_retains_receipt_with_or_without_error_body(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            task, evidence, asset, _ = setup(root)
+            for name, body in (('empty', None), ('body', io.BytesIO(b'failure'))):
+                with self.subTest(name=name), patch.object(local_model_review.urllib.request, 'build_opener') as factory:
+                    factory.return_value.open.side_effect = urllib.error.HTTPError('http://localhost', 503, 'failed', {}, body)
+                    receipt = local_model_review.run(task, evidence, asset, root / name)
+                self.assertEqual((receipt['status'], receipt['http_status']), ('model_service_failed', 503))
+                self.assertTrue((root / name / 'run_receipt.json').exists())
+                if body is not None:
+                    self.assertTrue(body.closed)
+
     def test_model_response_is_bound_and_kept_pending(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);task,evidence,asset,_=setup(root)

@@ -1,7 +1,9 @@
 import contextlib
 import csv
 import json
+import os
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -70,6 +72,51 @@ class PipelineTest(unittest.TestCase):
                 self.assertEqual(db.execute('SELECT effect FROM claims WHERE claim_id=?', ('C2',)).fetchone()[0], 'no difference reported')
             with self.assertRaises(FileExistsError):
                 build_prior.run(EXAMPLE, out)
+
+    def test_query_handles_unicode_in_legacy_server_locale(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            inputs = root / 'inputs'
+            inputs.mkdir()
+            for name, fields in build_prior.TABLES.items():
+                rows = table(name)
+                if name == 'claims':
+                    rows[0]['notes'] = '水稻产量证据'
+                write_rows(inputs / f'{name}.csv', rows, fields)
+            out = root / 'output'
+            build_prior.run(inputs, out)
+            env = dict(os.environ, LC_ALL='C', LANG='C', PYTHONUTF8='0', PYTHONCOERCECLOCALE='0')
+            command = [sys.executable, str(ROOT / 'scripts/query_prior.py'), '--db', str(out / 'prior.sqlite'),
+                       '--gene', 'DEMO1']
+            result = subprocess.run(command, cwd=root, env=env, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr.decode('ascii', errors='replace'))
+            self.assertEqual(json.loads(result.stdout)['claims'][0]['notes'], '水稻产量证据')
+
+    def test_server_cli_from_unicode_path_and_other_working_directory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / 'server 数据 with spaces'
+            inputs, work = root / '输入', root / '工作目录'
+            inputs.mkdir(parents=True)
+            work.mkdir()
+            for name, fields in build_prior.TABLES.items():
+                rows = table(name)
+                if name == 'genes':
+                    rows[0]['symbol'] = '示例基因1'
+                write_rows(inputs / f'{name}.csv', rows, fields)
+            env = dict(os.environ, LC_ALL='C', LANG='C', PYTHONUTF8='1')
+            screen, output = root / '筛选', root / '数据库'
+            commands = [
+                ['screen_candidates.py', '--input', str(EXAMPLE / 'annotations.csv'), '--out', str(screen)],
+                ['build_prior.py', '--input-dir', str(inputs), '--out', str(output)],
+                ['query_prior.py', '--db', str(output / 'prior.sqlite'), '--gene', '示例基因1'],
+            ]
+            for command in commands:
+                result = subprocess.run([sys.executable, str(ROOT / 'scripts' / command[0]), *command[1:]],
+                                        cwd=work, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                        timeout=30)
+                self.assertEqual(result.returncode, 0, result.stderr.decode('utf-8', errors='replace'))
+            self.assertEqual(json.loads(result.stdout)['total_claims'], 4)
 
     def test_review_conflict_and_event_identity_guards(self):
         rows = {t: table(t) for t in build_prior.TABLES}

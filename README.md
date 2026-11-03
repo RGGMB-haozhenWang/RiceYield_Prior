@@ -41,19 +41,26 @@ flowchart LR
 
 ## 环境与快速运行
 
-使用 Python 3.9 及以上版本，脚本使用 Python 标准库。下例使用虚构数据演示候选筛选、数据库构建与查询；每次运行使用新的输出目录。
+使用 Python 3.9 及以上版本，脚本使用 Python 标准库和 Python 自带的 SQLite 模块。Linux 服务器和 macOS 均可使用普通用户运行；将仓库和输入放在可读位置，并选择可写的运行目录。脚本可通过绝对路径从其他工作目录调用。
+
+在中文路径或旧版 `C` 语言环境下，建议先设置 `export PYTHONUTF8=1`。查询结果输出为标准 JSON，中文转义可由 JSON 解析器还原。联网检索和全文获取使用 Europe PMC HTTPS 接口；本地模型步骤使用同一机器上的 Ollama 回环地址。
+
+下例从仓库根目录运行，使用虚构数据演示候选筛选、数据库构建与查询。`mktemp` 会创建新的工作目录；服务器可将 `TMPDIR` 指向有足够空间的工作盘。
 
 ```bash
+export PYTHONUTF8=1
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rice_prior.XXXXXXXX")"
+
 python3 scripts/screen_candidates.py \
   --input examples/synthetic/annotations.csv \
-  --out /tmp/rice_prior_screen_example
+  --out "$WORK_DIR/screen"
 
 python3 scripts/build_prior.py \
   --input-dir examples/synthetic \
-  --out /tmp/rice_prior_build_example
+  --out "$WORK_DIR/build"
 
 python3 scripts/query_prior.py \
-  --db /tmp/rice_prior_build_example/prior.sqlite \
+  --db "$WORK_DIR/build/prior.sqlite" \
   --gene DEMO1 --limit 10
 
 python3 scripts/claim_task_key.py examples/synthetic/review_task.json
@@ -65,13 +72,15 @@ python3 -m unittest discover -s tests -v
 ## 检索与来源登记
 
 ```bash
+WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rice_prior_search.XXXXXXXX")"
+
 python3 scripts/search_europe_pmc.py \
   --query '(TITLE_ABS:rice OR TITLE_ABS:"Oryza sativa") AND ("grain yield" OR "grain number")' \
-  --max-pages 2 --out /tmp/rice_prior_search_example
+  --max-pages 2 --out "$WORK_DIR/search"
 
 python3 scripts/prepare_sources.py \
-  --search-dir /tmp/rice_prior_search_example \
-  --out /tmp/rice_prior_source_intake_example
+  --search-dir "$WORK_DIR/search" \
+  --out "$WORK_DIR/source_intake"
 ```
 
 来源登记表记录待审条目、分页谱系及元数据冲突。后续可依据论文版本、研究范围和原文内容补充来源状态。检索 API 说明见 [Europe PMC Articles RESTful API](https://dev.europepmc.org/RestfulWebService)。

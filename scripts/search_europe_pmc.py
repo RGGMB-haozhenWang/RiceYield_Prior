@@ -77,7 +77,8 @@ def run(query, output, max_pages=1, page_size=100):
         receipt.update(status='access_stop' if exc.code in (401, 403, 429) else 'failed',
                        error_type='HTTPError', http_status=exc.code)
         write_json(output / 'manifest.json', receipt)
-        exc.close()
+        if exc.fp is not None:
+            exc.close()
         raise
     except AccessStop as exc:
         receipt.update(status='access_stop', error_type='AccessStop', error=str(exc))

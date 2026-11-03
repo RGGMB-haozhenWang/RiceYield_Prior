@@ -15,6 +15,7 @@ import validate_review
 import verify_review
 import acquire_fulltext
 import extract_jats_evidence
+import common
 
 
 def response(finding, quote, reason='stop', anchor='xml-1'):
@@ -32,6 +33,17 @@ def xml(doi='10.1234/target', pmcid='PMC123', ref_doi=None):
 
 
 class ReviewRegressionTests(unittest.TestCase):
+    def test_bounded_stream_keeps_exact_and_partial_data(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with (root / 'exact').open('wb') as output:
+                common.copy_bounded(io.BytesIO(b'abcd'), output, 4, 'too_large')
+            self.assertEqual((root / 'exact').read_bytes(), b'abcd')
+            with (root / 'partial').open('wb') as output:
+                with self.assertRaisesRegex(ValueError, 'too_large'):
+                    common.copy_bounded(io.BytesIO(b'abcdef'), output, 4, 'too_large')
+            self.assertEqual((root / 'partial').read_bytes(), b'abcde')
+
     def test_hyphen_spacing_is_normalized_without_dropping_the_hyphen(self):
         result = validate_review.validate_response(response('Observed edits', 'The GS3-edited line was measured'),
             {'xml-1': 'The GS3 -edited line was measured in the experiment.'})
@@ -86,12 +98,15 @@ class ReviewRegressionTests(unittest.TestCase):
 
     def test_search_access_stop_is_explicit(self):
         with tempfile.TemporaryDirectory() as temp:
-            out = Path(temp) / 'search'
-            err = urllib.error.HTTPError('https://example.invalid', 403, 'denied', {}, None)
-            with patch.object(search_europe_pmc.urllib.request, 'urlopen', side_effect=err):
-                with self.assertRaises(urllib.error.HTTPError):search_europe_pmc.run('example', out)
-            manifest = json.loads((out / 'manifest.json').read_text())
-            self.assertEqual((manifest['status'], manifest['http_status']), ('access_stop', 403))
+            for name, body in (('empty', None), ('body', io.BytesIO(b'denied'))):
+                out = Path(temp) / name
+                err = urllib.error.HTTPError('https://example.invalid', 403, 'denied', {}, body)
+                with self.subTest(name=name), patch.object(search_europe_pmc.urllib.request, 'urlopen', side_effect=err):
+                    with self.assertRaises(urllib.error.HTTPError):search_europe_pmc.run('example', out)
+                manifest = json.loads((out / 'manifest.json').read_text())
+                self.assertEqual((manifest['status'], manifest['http_status']), ('access_stop', 403))
+                if body is not None:
+                    self.assertTrue(body.closed)
 
     def test_receipt_replay_detects_tampering(self):
         from common import digest
