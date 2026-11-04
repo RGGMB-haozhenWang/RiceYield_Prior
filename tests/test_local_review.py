@@ -1,4 +1,5 @@
 import hashlib
+import http.client
 import io
 import json
 import sys
@@ -226,6 +227,22 @@ class LocalModelReviewTest(unittest.TestCase):
             self.assertEqual(rec['status'],'model_service_failed')
             self.assertEqual((root/'run/response.raw.partial').read_bytes(),b'{"unfinished":')
             self.assertTrue((root/'run/run_receipt.json').is_file())
+
+    def test_incomplete_read_keeps_response_fragment_and_failure_receipt(self):
+        class Interrupted:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, n): raise http.client.IncompleteRead(b'{"unfinished":', 10)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            task, evidence, asset, _ = setup(root)
+            tags = {'models': [{'name': 'demo:1b', 'digest': 'a' * 64}]}
+            with patch.object(local_model_review.urllib.request, 'build_opener') as factory:
+                factory.return_value.open.side_effect = [Reply(tags), Interrupted()]
+                rec = local_model_review.run(task, evidence, asset, root / 'run')
+            self.assertEqual(rec['status'], 'model_service_failed')
+            self.assertEqual((root / 'run/response.raw.partial').read_bytes(), b'{"unfinished":')
+            self.assertTrue((root / 'run/run_receipt.json').is_file())
 
     def test_held_asset_can_be_reused_during_access_stop(self):
         with tempfile.TemporaryDirectory() as temp:

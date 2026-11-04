@@ -43,7 +43,7 @@ flowchart LR
 
 使用 Python 3.9 及以上版本，脚本使用 Python 标准库和 Python 自带的 SQLite 模块。Linux 服务器和 macOS 均可使用普通用户运行；将仓库和输入放在可读位置，并选择可写的运行目录。脚本可通过绝对路径从其他工作目录调用。
 
-在中文路径或旧版 `C` 语言环境下，建议先设置 `export PYTHONUTF8=1`。查询结果输出为标准 JSON，中文转义可由 JSON 解析器还原。联网检索和全文获取使用 Europe PMC HTTPS 接口；本地模型步骤使用同一机器上的 Ollama 回环地址。
+在中文路径或旧版 `C` 语言环境下，建议先设置 `export PYTHONUTF8=1`。查询结果输出为标准 JSON，中文转义可由 JSON 解析器还原。联网检索和全文获取使用 Europe PMC HTTPS 接口；服务器代理设置及 HTTP 响应排查见[接手指南](docs/agent_handoff.md#服务器网络与-http-200-排查)。本地模型步骤使用同一机器上的 Ollama 回环地址。
 
 下例从仓库根目录运行，使用虚构数据演示候选筛选、数据库构建与查询。`mktemp` 会创建新的工作目录；服务器可将 `TMPDIR` 指向有足够空间的工作盘。
 

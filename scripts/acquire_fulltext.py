@@ -2,6 +2,7 @@
 """Acquire one prequalified Europe PMC OA XML, or retain a precise failure receipt."""
 import argparse
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -12,7 +13,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
-from common import NoRedirect, copy_bounded, digest, strict_json, write_json
+from common import (IncompleteResponse, NoRedirect, check_response_length, copy_bounded, digest,
+                    html_response_status, response_details, strict_json, write_json)
 from literature_links import normalize_doi
 
 MAX_BYTES = 15_000_000
@@ -64,15 +66,17 @@ def validate_jats(raw, doi, pmcid):
             'sha256': hashlib.sha256(raw).hexdigest(), 'identity_scope': 'article-meta IDs and body only'}
 
 
-def acquire(source_path, output):
+def acquire(source_path, output, use_env_proxy=False):
     source_path, output = Path(source_path), Path(output)
     output.mkdir(parents=True, exist_ok=False)
     receipt = {'status': 'in_progress', 'created_at_utc': datetime.now(timezone.utc).isoformat(),
                'source_path': str(source_path.resolve()), 'route': 'Europe PMC fullTextXML',
                'attempts': 0, 'max_bytes': MAX_BYTES, 'timeout_seconds': 25,
+               'network_mode': 'environment' if use_env_proxy else 'direct',
                'scope': 'transport and article identity only; scientific review not performed'}
     partial = output / 'fulltext.xml.partial'
     start = time.monotonic()
+    network_started = False
     try:
         source_hash = digest(source_path)
         source = strict_json(source_path.read_text(encoding='utf-8'))
@@ -100,32 +104,49 @@ def acquire(source_path, output):
                 raise ValueError('source_manifest_changed_before_request')
             if code_hashes != {name: digest(path) for name, path in code_paths.items()}:
                 raise ValueError('code_changed_before_request')
-            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+            network_started = True
+            proxy = urllib.request.ProxyHandler() if use_env_proxy else urllib.request.ProxyHandler({})
+            opener = urllib.request.build_opener(proxy, NoRedirect())
             receipt['attempts'] = 1
             with opener.open(req, timeout=25) as response, partial.open('xb') as stream:
                 status = getattr(response, 'status', 200)
                 receipt['http_status'] = status
+                receipt.update(response_details(response))
                 if status != 200:
                     raise urllib.error.HTTPError(req.full_url, status, 'HTTP request failed', {}, None)
                 copy_bounded(response, stream, MAX_BYTES, 'response_over_limit')
             raw = partial.read_bytes()
-            sample = raw[:4096].lower().lstrip()
-            if (sample.startswith(b'<html') or sample.startswith(b'<!doctype html')) and any(
-                    marker in sample for marker in (b'captcha', b'cloudflare', b'verify you are human', b'access denied')):
+            receipt['received_bytes'] = len(raw)
+            html_status = html_response_status(raw)
+            if html_status == 'access_stop':
                 receipt['status'] = 'access_stop'
             else:
-                try:
-                    identity = validate_jats(raw, doi, pmcid)
-                    if digest(source_path) != source_hash:
-                        raise ValueError('source_manifest_changed')
-                    if code_hashes != {name: digest(path) for name, path in code_paths.items()}:
-                        raise ValueError('code_changed')
-                    os.replace(partial, output / 'fulltext.xml')
-                    receipt.update(status='valid_fulltext_xml', identity=identity,
-                                   asset='fulltext.xml', sha256=identity['sha256'])
-                except (ValueError, ET.ParseError) as exc:
-                    state = 'source_changed' if str(exc).startswith('source_manifest_changed') else 'code_changed' if str(exc).startswith('code_changed') else 'invalid_asset'
-                    receipt.update(status=state, error_type=type(exc).__name__, error=str(exc))
+                check_response_length(receipt, len(raw))
+                if html_status == 'unexpected_html':
+                    receipt['status'] = 'unexpected_html'
+                else:
+                    try:
+                        identity = validate_jats(raw, doi, pmcid)
+                        if digest(source_path) != source_hash:
+                            raise ValueError('source_manifest_changed')
+                        if code_hashes != {name: digest(path) for name, path in code_paths.items()}:
+                            raise ValueError('code_changed')
+                        os.replace(partial, output / 'fulltext.xml')
+                        receipt.update(status='valid_fulltext_xml', identity=identity,
+                                       asset='fulltext.xml', sha256=identity['sha256'])
+                    except (ValueError, ET.ParseError) as exc:
+                        state = 'source_changed' if str(exc).startswith('source_manifest_changed') else 'code_changed' if str(exc).startswith('code_changed') else 'invalid_asset'
+                        receipt.update(status=state, error_type=type(exc).__name__, error=str(exc))
+    except (IncompleteResponse, http.client.IncompleteRead) as exc:
+        status = 'incomplete_response'
+        try:
+            if partial.exists():
+                with partial.open('rb') as stream:
+                    if html_response_status(stream.read(65536)) == 'access_stop':
+                        status = 'access_stop'
+        except OSError:
+            pass
+        receipt.update(status=status, error_type=type(exc).__name__, error=str(exc), transport_incomplete=True)
     except urllib.error.HTTPError as exc:
         receipt.update(status='access_stop' if exc.code in (401, 403, 429) else 'redirect_requires_review' if 300 <= exc.code < 400 else 'transport_failed',
                        http_status=exc.code, error_type='HTTPError')
@@ -133,14 +154,17 @@ def acquire(source_path, output):
             exc.close()
     except (OSError, TimeoutError) as exc:
         receipt.update(status='transport_failed' if receipt['attempts'] else 'invalid_source',
-                       error_type=type(exc).__name__, error=str(exc))
+                       error_type=type(exc).__name__,
+                       error='See error_type and local proxy configuration' if use_env_proxy and network_started else str(exc))
     except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
         state = 'source_changed' if str(exc).startswith('source_manifest_changed') else 'code_changed' if str(exc).startswith('code_changed') else 'invalid_asset' if receipt['attempts'] else 'invalid_source'
-        receipt.update(status=state, error_type=type(exc).__name__, error=str(exc))
+        receipt.update(status=state, error_type=type(exc).__name__,
+                       error='See error_type and local proxy configuration' if use_env_proxy and network_started else str(exc))
     receipt['elapsed_seconds'] = round(time.monotonic() - start, 3)
     if partial.exists():
         try:
             receipt.update(partial='fulltext.xml.partial', partial_bytes=partial.stat().st_size, partial_sha256=digest(partial))
+            receipt.setdefault('received_bytes', receipt['partial_bytes'])
         except OSError:
             receipt['partial_hash_status'] = 'unavailable'
     write_json(output / 'acquisition_receipt.json', receipt)
@@ -151,9 +175,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True, help='Prequalified source JSON; see agent runbook')
     parser.add_argument('--out', type=Path, required=True, help='New directory; one attempt only')
+    parser.add_argument('--use-env-proxy', action='store_true', help='Use the server-configured proxy for this attempt')
     args = parser.parse_args()
-    receipt = acquire(args.source, args.out)
-    print(json.dumps({'status': receipt['status'], 'attempts': receipt['attempts']}, ensure_ascii=False))
+    receipt = acquire(args.source, args.out, use_env_proxy=args.use_env_proxy)
+    fields = ('status', 'attempts', 'http_status', 'content_type', 'content_encoding',
+              'expected_bytes', 'received_bytes', 'error_type')
+    print(json.dumps({key: receipt[key] for key in fields if key in receipt}, ensure_ascii=True))
     if receipt['status'] != 'valid_fulltext_xml':
         raise SystemExit(1)
 

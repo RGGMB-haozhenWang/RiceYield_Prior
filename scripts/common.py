@@ -1,8 +1,10 @@
 """Small file helpers for a portable prior-curation run."""
 import csv
 import hashlib
+import http.client
 import json
 import os
+import re
 import urllib.request
 from pathlib import Path
 
@@ -36,10 +38,50 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+class IncompleteResponse(ValueError):
+    pass
+
+
+def response_details(response):
+    headers = getattr(response, 'headers', None)
+    if headers is None:
+        return {}
+    details = {}
+    for header, key in (('Content-Type', 'content_type'), ('Content-Encoding', 'content_encoding')):
+        value = headers.get(header, '')
+        if isinstance(value, str) and value:
+            details[key] = value.split(';', 1)[0].strip().lower()[:100]
+    length, transfer = headers.get('Content-Length', ''), headers.get('Transfer-Encoding', '')
+    if isinstance(length, str) and re.fullmatch(r'[0-9]{1,18}', length) and not transfer:
+        details['expected_bytes'] = int(length)
+    return details
+
+
+def check_response_length(details, actual):
+    expected = details.get('expected_bytes')
+    if expected is not None and expected != actual:
+        raise IncompleteResponse(f'expected {expected} bytes, received {actual}')
+
+
+def html_response_status(raw):
+    sample = raw[:65536].lstrip(b'\xef\xbb\xbf \t\r\n').lower()
+    sample = re.sub(br'^<\?xml\b[^>]*\?>\s*', b'', sample, count=1)
+    sample = re.sub(br'^(?:<!--.*?-->\s*)+', b'', sample, flags=re.S)
+    if not sample.startswith((b'<html', b'<!doctype html')):
+        return None
+    markers = (b'captcha', b'cloudflare', b'verify you are human', b'access denied',
+               b'checking your browser', b'request blocked', b'403 forbidden', b'just a moment')
+    return 'access_stop' if any(marker in sample for marker in markers) else 'unexpected_html'
+
+
 def copy_bounded(response, stream, limit, error):
     received = 0
     while True:
-        chunk = response.read(min(128 * 1024, limit - received + 1))
+        try:
+            chunk = response.read(min(128 * 1024, limit - received + 1))
+        except http.client.IncompleteRead as exc:
+            stream.write(exc.partial[:limit - received + 1])
+            raise
         if not chunk:
             break
         stream.write(chunk)

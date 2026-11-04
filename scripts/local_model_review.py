@@ -2,6 +2,7 @@
 """Run one bounded local Ollama review attempt and retain an unapproved candidate."""
 import argparse
 import copy
+import http.client
 import ipaddress
 import json
 import os
@@ -201,7 +202,7 @@ def run(task_path, evidence_path, asset_path, output):
         receipt.update(status='model_service_failed', http_status=exc.code, error_type='HTTPError')
         if exc.fp is not None:
             exc.close()
-    except (OSError, TimeoutError) as exc:
+    except (OSError, TimeoutError, http.client.IncompleteRead) as exc:
         receipt.update(status='invalid_task' if stage == 'preflight' else 'model_service_failed',
                        error_type=type(exc).__name__, error=str(exc))
     except (KeyError, TypeError, ValueError, UnicodeDecodeError) as exc:

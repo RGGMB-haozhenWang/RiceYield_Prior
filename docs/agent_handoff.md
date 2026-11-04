@@ -27,9 +27,34 @@
 python3 scripts/acquire_fulltext.py --source private/source.json --out runs/acquisition_001
 ```
 
-脚本只对 Europe PMC 的指定 PMCID 发起一次直接 HTTPS 请求，不自动重试或改用其他来源。它在 XML 的**当前文章 `article-meta`**中核对 DOI 和 PMCID，并检查正文；参考文献中的 DOI 不可替代文章身份。`valid_fulltext_xml` 仅表示传输、身份与基本结构合格，不表示图表、许可或科学结论已核验。
+脚本只对 Europe PMC 的指定 PMCID 发起一次 HTTPS 请求，默认直接连接，网络选项见下节。它在 XML 的**当前文章 `article-meta`**中核对 DOI 和 PMCID，并检查正文；参考文献中的 DOI 不可替代文章身份。`valid_fulltext_xml` 仅表示传输、身份与基本结构合格，不表示图表、许可或科学结论已核验。
 
-`access_stop`、`source_not_eligible`、`invalid_source`、`invalid_asset`、`source_changed`、`code_changed`、`transport_failed` 和 `redirect_requires_review` 都不是成功；已写入的 `.partial` 与 `acquisition_receipt.json` 保留。若进程被强制杀死或磁盘耗尽导致没有回执，人工/Agent 检查文件与实际进程终态，再使用新目录重试，不能把 partial 当作完整资产。
+`access_stop`、`source_not_eligible`、`invalid_source`、`invalid_asset`、`unexpected_html`、`incomplete_response`、`source_changed`、`code_changed`、`transport_failed` 和 `redirect_requires_review` 都不是成功；已写入的 `.partial` 与 `acquisition_receipt.json` 保留。若进程被强制杀死或磁盘耗尽导致没有回执，人工/Agent 检查文件与实际进程终态，再使用新目录重试，不能把 partial 当作完整资产。
+
+## 服务器网络与 HTTP 200 排查
+
+HTTP 200 表示收到响应，具体结果查看检索的 `manifest.json` 或全文获取的 `acquisition_receipt.json`：
+
+| 字段或状态 | 含义及下一步 |
+|---|---|
+| `http_status`、`content_type`、`content_encoding` | 响应状态及类型；仅记录少量内容类型信息，不记录全部响应头 |
+| `expected_bytes`、`received_bytes` | 服务端提供有效 `Content-Length` 时用于核对接收长度；没有该字段时长度未知 |
+| `incomplete_response` | 内容长度不符或连接中断；保留 `.partial`，检查服务器网络后在新目录处理 |
+| `unexpected_html` / `unexpected_response` | 收到 HTML 页面或非预期 JSON；在本地检查具体内容和接口配置 |
+| `access_stop` | 响应包含访问限制或验证页面；停止该来源，不切换线路重试 |
+| `invalid_asset` | 接收内容未通过全文 XML、文章身份或正文检查；结合回执 `error` 查原因 |
+| 检索 `partial` | 检索页数达到本次预算或分页未完成；检查 `max_pages`、`page_size` 和 `next_cursor` |
+
+部分文件可能含原文、页面或会话信息，应留在私有工作区；对外沟通只摘录脱敏状态，勿复制代理地址、凭据或完整响应。长度检查覆盖响应头声明的传输字节数；文章及补充材料的覆盖范围仍需逐篇核对。
+
+全文获取默认直接连接 Europe PMC。服务器如在**发起请求前**已配置可信的系统或环境代理，可在来源资格和访问停止记录允许时显式选择：
+
+```bash
+python3 scripts/acquire_fulltext.py --source private/source.json \
+  --out runs/acquisition_proxy_001 --use-env-proxy
+```
+
+此选项遵循服务器现有的 `HTTPS_PROXY` / `NO_PROXY` 等设置；回执的 `network_mode=environment` 表示选择了环境配置，实际路由由环境决定。代理凭据留在服务器环境中。入口仍只发起一次请求，遇到拒绝、验证或限流时保持停止状态，不能通过换代理或其他途径绕过。
 
 ## 3. 准备证据与本地模型任务
 
